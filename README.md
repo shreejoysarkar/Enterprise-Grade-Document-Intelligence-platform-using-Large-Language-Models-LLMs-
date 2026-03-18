@@ -13,14 +13,13 @@ git clone : https://github.com/shreejoysarkar/Enterprise-Grade-Document-Intellig
 
 
 ### 2. Create a uv enrionment after opening the repository
-
+(paste these command in the cmd)
 
 uv init --name doc_intel
-
 
 uv venv doc_intel --python 3.13
 
 
-Activating the env
+#### Activating the env
 
 doc_intel\Scripts\activate
