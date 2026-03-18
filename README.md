@@ -28,3 +28,9 @@ uv venv doc_intel --python 3.13
 
 doc_intel\Scripts\activate
 ```
+
+### 3. Installing requirements
+
+```bash
+uv pip install -r requirements.txt
+```
