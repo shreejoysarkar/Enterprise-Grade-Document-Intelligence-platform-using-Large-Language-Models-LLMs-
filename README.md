@@ -8,7 +8,7 @@ Follow these steps to set up and run the project locally:
 ---
 
 ### 1️. Clone the Repository  
-'''bash
+'''
 git clone : https://github.com/shreejoysarkar/Enterprise-Grade-Document-Intelligence-platform-using-Large-Language-Models-LLMs-.git
 '''
 
