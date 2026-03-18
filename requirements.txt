@@ -1,0 +1,89 @@
+
+# CORE LANGCHAIN PACKAGES
+# ============================================================================
+langchain
+langchain-core
+langchain-community
+langchain-text-splitters
+
+# ============================================================================
+# LLM & EMBEDDING PROVIDERS
+# ============================================================================
+# OpenAI (required)
+langchain-openai
+openai
+
+langchain-google-genai
+google-generativeai
+
+langchain-huggingface
+sentence-transformers
+
+# Ollama 
+langchain-ollama==0.2.3
+
+# ============================================================================
+# VECTOR STORES
+# ============================================================================
+# FAISS 
+faiss-cpu==1.12.0
+
+# Chroma 
+langchain-chroma
+chromadb
+
+# Qdrant (optional - for advanced users)
+# langchain-qdrant==0.2.3
+# qdrant-client==1.13.2
+
+# Pinecone (optional - cloud vector store)
+# langchain-pinecone==0.3.5
+# pinecone-client==5.0.2
+
+# ============================================================================
+# DOCUMENT LOADERS
+# ============================================================================
+# PDF Processing 
+pypdf
+
+# Web scraping 
+beautifulsoup4
+lxml
+
+
+# ============================================================================
+# UTILITIES
+# ============================================================================
+# Environment Management (required)
+python-dotenv
+
+# Token counting (required for cost estimation)
+tiktoken
+
+# Jupyter Notebooks (required)
+jupyter
+notebook
+ipykernel
+
+# Numpy (required for similarity calculations)
+numpy
+
+# Matplotlib (required for visualizations)
+matplotlib
+
+# ============================================================================
+# RAG EVALUATION (required for Notebook 10)
+# ============================================================================
+# Ragas Framework (RAG evaluation)
+ragas==0.3.9
+
+# HuggingFace Datasets (required by Ragas)
+datasets>=2.14.0
+
+# Seaborn (enhanced visualizations)
+seaborn>=0.12.0
+
+# Pandas (data analysis)
+pandas
+
+
