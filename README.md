@@ -9,17 +9,22 @@ Follow these steps to set up and run the project locally:
 
 ### 1️. Clone the Repository  
 
+```bash
+# Clone this repository
 git clone : https://github.com/shreejoysarkar/Enterprise-Grade-Document-Intelligence-platform-using-Large-Language-Models-LLMs-.git
 
+```
 
 ### 2. Create a uv enrionment after opening the repository
-(paste these command in the cmd)
+```bash
+## initializing uv 
+## (paste these command in the cmd)
 
 uv init --name doc_intel
 
 uv venv doc_intel --python 3.13
 
-
 #### Activating the env
 
 doc_intel\Scripts\activate
+```
