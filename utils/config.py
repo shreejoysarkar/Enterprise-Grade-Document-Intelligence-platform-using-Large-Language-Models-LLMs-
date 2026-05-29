@@ -15,22 +15,27 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # huggingface Configuration
-    HF_TOKEN: str
+    # HuggingFace Configuration
+    HF_API_KEY: str
 
-    # Qdrant Cloud Configuration
-    qdrant_url: str | None = None
-    qdrant_api_key: str | None = None
+    # Pinecone Configuration
+    PINECONE_API_KEY: str
+    pinecone_index_name: str = "doc-intel-hybrid"
+    pinecone_cloud: str = "aws"
+    pinecone_region: str = "us-east-1"
+    pinecone_metric: str = "dotproduct"
+    pinecone_namespace: str = "default"
 
-    # Collection Settings
-    collection_name: str = "rag_documents"
+    # Embedding Model Settings
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_dimension: int = 384
+    embedding_batch_size: int = 64
 
     # Document Processing Settings
     chunk_size: int = 1024
     chunk_overlap: int = 200
 
-    # Model Configuration
-    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    # LLM Configuration
     llm_model: str = "llama3.1"
     llm_temperature: float = 0.0
 

@@ -180,7 +180,7 @@ class DocumentChunker:
         logger.info("\n🎉 Chunking processing complete!")
         logger.info(f"✅ Successful: {successful} | ❌ Failed: {failed}")
 
-
+'''
 def main():
     chunker = DocumentChunker()
     chunker.chunk_all()
@@ -188,3 +188,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+'''

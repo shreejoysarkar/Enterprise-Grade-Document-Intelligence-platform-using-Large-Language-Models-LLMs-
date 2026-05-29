@@ -25,7 +25,12 @@ chonkie[gemini]
 docling
 docling-core
 langchain-docling
-tiktokens
+tiktoken
 unstructured[all-docs]
-
+pinecone
+pinecone-notebooks
+pinecone-text
+pydantic-settings
+mmh3==4.1.0
 -e .
+
