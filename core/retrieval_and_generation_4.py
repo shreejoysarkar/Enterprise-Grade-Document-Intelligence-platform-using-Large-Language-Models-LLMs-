@@ -81,9 +81,10 @@ class RAGPipeline:
             
         prompt = (
             "You are an expert AI assistant for an enterprise document intelligence platform.\n"
-            "Answer the user's question based strictly on the provided context documents below.\n"
+            "Synthesize a single, comprehensive, and flowing answer to the user's question based strictly on the provided context below.\n"
+            "Do not just list what each document says. Instead, combine the information into a single unified response.\n"
             "If the answer cannot be found in the context, clearly state that you do not know.\n"
-            "Always cite the source files of your information.\n\n"
+            "Use inline citations to reference your sources (e.g., 'Apple faces data protection risks [aapl-20230930.md]').\n\n"
             "CONTEXT DOCUMENTS:\n"
             f"{context_str}\n"
             "USER QUESTION:\n"

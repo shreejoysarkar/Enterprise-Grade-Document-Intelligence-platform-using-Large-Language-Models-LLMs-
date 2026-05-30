@@ -37,6 +37,31 @@ def run_query(query: str):
     pipeline = RAGPipeline()
     pipeline.generate(query)
 
+def run_chat():
+    """Run Phase 4: Interactive Retrieval and Generation Loop."""
+    logger.info("Starting interactive RAG chat... (Type 'exit' or 'quit' to stop)")
+    
+    from core.retrieval_and_generation_4 import RAGPipeline
+    pipeline = RAGPipeline()
+    
+    print("\n--- RAG Chat Initialized ---")
+    print("Type 'exit' or 'quit' to stop.")
+    
+    while True:
+        try:
+            query = input("\nQuery: ")
+            if query.lower() in ["exit", "quit"]:
+                break
+            if not query.strip():
+                continue
+                
+            pipeline.generate(query)
+            
+        except KeyboardInterrupt:
+            break
+            
+    print("\nExiting chat.")
+
 def main():
     parser = argparse.ArgumentParser(description="Doc-Intel Enterprise RAG Platform")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -46,8 +71,11 @@ def main():
     ingest_parser.add_argument("--data-dir", type=str, default="Data/Input", help="Path to input PDFs")
 
     # Query command
-    query_parser = subparsers.add_parser("query", help="Query the RAG pipeline")
+    query_parser = subparsers.add_parser("query", help="Query the RAG pipeline once")
     query_parser.add_argument("text", type=str, help="The question to ask")
+
+    # Chat command
+    chat_parser = subparsers.add_parser("chat", help="Start an interactive chat session")
 
     args = parser.parse_args()
 
@@ -55,6 +83,8 @@ def main():
         run_ingestion(args.data_dir)
     elif args.command == "query":
         run_query(args.text)
+    elif args.command == "chat":
+        run_chat()
     else:
         parser.print_help()
         sys.exit(1)
