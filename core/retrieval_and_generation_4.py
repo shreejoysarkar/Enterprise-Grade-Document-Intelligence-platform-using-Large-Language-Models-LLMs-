@@ -34,7 +34,7 @@ class RAGPipeline:
         logger.info(f"Loading CrossEncoder re-ranker: {reranker_model_name}...")
         self.reranker = CrossEncoder(reranker_model_name)
         logger.info("Re-ranker loaded successfully.")
-        
+
     def retrieve_and_rerank(self, query: str, retrieve_top_n: int = 20, keep_top_k: int = 4) -> list[dict[str, Any]]:
         """Retrieve chunks via Hybrid Search and re-rank them."""
         logger.info(f"Retrieving top {retrieve_top_n} candidates from Pinecone...")
@@ -81,8 +81,8 @@ class RAGPipeline:
             
         prompt = (
             "You are an expert AI assistant for an enterprise document intelligence platform.\n"
-            "Synthesize a single, comprehensive, and flowing answer to the user's question based strictly on the provided context below.\n"
-            "Do not just list what each document says. Instead, combine the information into a single unified response.\n"
+            "Synthesize a clear, concise, and accurate answer to the user's question based strictly on the provided context below.\n"
+            "Keep your response to the point, avoiding unnecessary repetition or overly long explanations.\n"
             "If the answer cannot be found in the context, clearly state that you do not know.\n"
             "Use inline citations to reference your sources (e.g., 'Apple faces data protection risks [aapl-20230930.md]').\n\n"
             "CONTEXT DOCUMENTS:\n"
@@ -112,12 +112,24 @@ class RAGPipeline:
         logger.info(f"Generating answer using local Ollama model: {self.llm_model}...")
         
         messages = [
-            {"role": "system", "content": "You are a helpful and precise document assistant."},
+            {"role": "system", "content": "You are a helpful, precise, and concise document assistant."},
             {"role": "user", "content": prompt}
         ]
         
+        # Options to speed up generation and prevent repeating loops
+        options = {
+            "temperature": self.settings.llm_temperature if self.settings.llm_temperature > 0 else 0.1,
+            "num_predict": 512,  # Limit the max generation length to reduce time
+            "repeat_penalty": 1.15  # Help prevent the model from looping/stuttering
+        }
+        
         try:
-            response = ollama.chat(model=self.llm_model, messages=messages, stream=stream)
+            response = ollama.chat(
+                model=self.llm_model, 
+                messages=messages, 
+                stream=stream,
+                options=options
+            )
             
             if stream:
                 print(f"\n[{self.llm_model}] Answer:\n", end="")
