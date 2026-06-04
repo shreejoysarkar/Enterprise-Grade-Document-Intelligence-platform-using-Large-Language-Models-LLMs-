@@ -13,7 +13,9 @@ from utils.logger import get_logger, setup_logging
 
 # Load environment variables
 load_dotenv()
+from utils.config import get_settings
 
+settings = get_settings()
 # Initialize logger
 setup_logging()
 logger = get_logger(__name__)
@@ -27,8 +29,8 @@ class DocumentChunker:
         input_dir: Path = Path("Data") / "Output",
         output_dir: Path = Path("Data") / "chunks",
         tokenizer_name: str = "gpt2",
-        chunk_size: int = 512,
-        chunk_overlap: int = 50,
+        chunk_size: int = settings.chunk_size,
+        chunk_overlap: int = settings.chunk_overlap,
         table_chunk_size: int = 3,
     ):
         """Initializes the DocumentChunker with directories and chunking configurations.
@@ -99,7 +101,9 @@ class DocumentChunker:
                             "source_file": file_path.name
                         })
                         chunks.append(chunk)
-            
+
+
+
             # 2. Chunk table content using TableChunker
             table_chunks = self.table_chunker.chunk(table.content)
             for chunk in table_chunks:

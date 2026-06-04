@@ -10,17 +10,17 @@ def run_ingestion(data_dir: str):
     logger.info("Starting Document Ingestion Pipeline...")
     
     # Imports inside functions to prevent heavy loading for simple commands
-    from core.doc_processor_1 import DirectoryProcessor
-    from core.chunking_2 import HybridChunker
+    from core.doc_processor_1 import DocumentProcessor
+    from core.chunking_2 import DocumentChunker
     from core.embedding_and_indexing_3 import HybridSearchIndexer
 
     # Phase 1: Process PDFs to Markdown
-    processor = DirectoryProcessor(input_dir=data_dir)
-    processor.process_directory()
+    processor = DocumentProcessor(input_dir=data_dir)
+    processor.process_all()
     
     # Phase 2: Chunk Markdown to JSONL
-    chunker = HybridChunker()
-    chunker.process_directory()
+    chunker = DocumentChunker()
+    chunker.chunk_all()
     
     # Phase 3: Embed and Index
     indexer = HybridSearchIndexer()
