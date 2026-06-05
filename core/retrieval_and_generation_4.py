@@ -35,8 +35,13 @@ class RAGPipeline:
         self.reranker = CrossEncoder(reranker_model_name)
         logger.info("Re-ranker loaded successfully.")
 
-    def retrieve_and_rerank(self, query: str, retrieve_top_n: int = 20, keep_top_k: int = 4) -> list[dict[str, Any]]:
-        """Retrieve chunks via Hybrid Search and re-rank them."""
+    def retrieve_and_rerank(self, query: str, retrieve_top_n: int = 10, keep_top_k: int = 3) -> list[dict[str, Any]]:
+        """Retrieve chunks via Hybrid Search and re-rank them.
+        
+        Speed tuning:
+          - retrieve_top_n=10  (was 20) → cross-encoder runs on half as many pairs
+          - keep_top_k=3       (was 4)  → slightly smaller prompt for faster TTFT
+        """
         logger.info(f"Retrieving top {retrieve_top_n} candidates from Pinecone...")
         
         # 1. Base Retrieval
@@ -50,46 +55,51 @@ class RAGPipeline:
             logger.warning("No results found in index.")
             return []
             
-        # 2. Re-ranking
+        # 2. Re-ranking — truncate texts fed to cross-encoder to 512 chars
+        # (cross-encoder is the slowest CPU step; shorter inputs = faster inference)
         logger.info("Re-ranking candidates...")
-        # Prepare pairs for cross-encoder: (query, document_text)
-        pairs = [[query, match["metadata"].get("text", "")] for match in raw_results]
+        pairs = [
+            [query, match["metadata"].get("text", "")[:512]]
+            for match in raw_results
+        ]
         
-        # Get scores
         scores = self.reranker.predict(pairs)
         
-        # Combine scores with results
         for match, score in zip(raw_results, scores):
             match["rerank_score"] = float(score)
             
-        # Sort by rerank score descending
         reranked_results = sorted(raw_results, key=lambda x: x["rerank_score"], reverse=True)
         
-        # Keep top K
         final_results = reranked_results[:keep_top_k]
         logger.info(f"Retained top {keep_top_k} results after re-ranking.")
         
         return final_results
         
+    # Max chars of each chunk to include in the prompt.
+    # Keeps total prompt tokens low → faster TTFT without losing key context.
+    _PROMPT_CHUNK_LIMIT = 600
+
     def build_prompt(self, query: str, context_chunks: list[dict[str, Any]]) -> str:
-        """Format the retrieved chunks into a prompt for the LLM."""
+        """Format the retrieved chunks into a prompt for the LLM.
+        
+        Each chunk is capped at _PROMPT_CHUNK_LIMIT characters to keep
+        the total prompt short and reduce LLM time-to-first-token.
+        """
         context_str = ""
         for i, chunk in enumerate(context_chunks, 1):
             source = chunk["metadata"].get("source_file", "Unknown")
-            text = chunk["metadata"].get("text", "")
+            text = chunk["metadata"].get("text", "")[:self._PROMPT_CHUNK_LIMIT]
             context_str += f"--- Document {i} (Source: {source}) ---\n{text}\n\n"
             
         prompt = (
-            "You are an expert AI assistant for an enterprise document intelligence platform.\n"
-            "Synthesize a clear, concise, and accurate answer to the user's question based strictly on the provided context below.\n"
-            "Keep your response to the point, avoiding unnecessary repetition or overly long explanations.\n"
-            "If the answer cannot be found in the context, clearly state that you do not know.\n"
-            "Use inline citations to reference your sources (e.g., 'Apple faces data protection risks [aapl-20230930.md]').\n\n"
-            "CONTEXT DOCUMENTS:\n"
-            f"{context_str}\n"
-            "USER QUESTION:\n"
+            "You are a concise document assistant. Answer using ONLY the context below.\n"
+            "Be brief and direct. Cite sources inline e.g. [filename.md].\n"
+            "If the answer is not in the context, say \"I don't know.\".\n\n"
+            "CONTEXT:\n"
+            f"{context_str}"
+            "QUESTION: "
             f"{query}\n\n"
-            "ANSWER:\n"
+            "ANSWER:"
         )
         return prompt
 
@@ -116,11 +126,19 @@ class RAGPipeline:
             {"role": "user", "content": prompt}
         ]
         
-        # Options to speed up generation and prevent repeating loops
+        # Generation options tuned for speed:
+        #   num_predict=300  — hard cap on output tokens (was 512)
+        #   num_ctx=2048     — smaller KV-cache = faster per-token inference
+        #   top_k=20         — nucleus sampling subset; faster than greedy on some backends
+        #   top_p=0.9        — controls diversity without sacrificing speed
+        #   repeat_penalty   — prevents looping / stuttering
         options = {
             "temperature": self.settings.llm_temperature if self.settings.llm_temperature > 0 else 0.1,
-            "num_predict": 512,  # Limit the max generation length to reduce time
-            "repeat_penalty": 1.15  # Help prevent the model from looping/stuttering
+            "num_predict": 300,
+            "num_ctx": 2048,
+            "top_k": 20,
+            "top_p": 0.9,
+            "repeat_penalty": 1.1,
         }
         
         try:

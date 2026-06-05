@@ -46,6 +46,16 @@ const docsContentHeader = document.getElementById('docsContentHeader');
 const docsContentBody   = document.getElementById('docsContentBody');
 const refreshDocs       = document.getElementById('refreshDocs');
 
+// Source viewer panel
+const srcOverlay        = document.getElementById('srcOverlay');
+const srcPanel          = document.getElementById('srcPanel');
+const srcPanelTitle     = document.getElementById('srcPanelTitle');
+const srcPanelBadge     = document.getElementById('srcPanelBadge');
+const srcPanelMeta      = document.getElementById('srcPanelMeta');
+const srcExcerptBanner  = document.getElementById('srcExcerptBanner');
+const srcPanelBody      = document.getElementById('srcPanelBody');
+const srcPanelClose     = document.getElementById('srcPanelClose');
+
 // ── Nav ───────────────────────────────────────────────────────────────────────
 function showView(view) {
   [viewChat, viewIngest, viewDocs, viewStatus].forEach(v => v.classList.remove('active'));
@@ -175,6 +185,7 @@ function renderSources(sources, container) {
   sources.forEach(src => {
     const chip = document.createElement('div');
     chip.className = 'source-chip';
+    chip.setAttribute('title', 'Click to view full document');
 
     const name = src.source_file
       ? src.source_file.split(/[/\\]/).pop()
@@ -185,14 +196,120 @@ function renderSources(sources, container) {
         <div style="display:flex; align-items:center; gap:0.375rem;">
           <span class="source-chip-name" title="${src.source_file ?? ''}">${name}</span>
           <span class="source-chip-score">score ${src.score?.toFixed(3) ?? '—'}</span>
+          <span style="margin-left:auto;color:var(--text-dim);flex-shrink:0;" title="Open full document">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+              <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+          </span>
         </div>
         ${src.excerpt ? `<div class="source-chip-excerpt">${escapeHtml(src.excerpt)}</div>` : ''}
       </div>`;
 
+    // Open source panel on click
+    chip.addEventListener('click', () => openSourcePanel(src));
     wrapper.appendChild(chip);
   });
 
   container.appendChild(wrapper);
+}
+
+// ── Source Document Viewer Panel ──────────────────────────────────────────────
+async function openSourcePanel(src) {
+  const filename = src.source_file
+    ? src.source_file.split(/[/\\]/).pop()
+    : null;
+
+  if (!filename) return;
+
+  // Show panel immediately (loading state)
+  srcPanelTitle.textContent = filename.replace(/\.md$/, '');
+  srcPanelBadge.textContent = 'Source';
+  srcPanelMeta.textContent  = '';
+  srcExcerptBanner.style.display = 'none';
+  srcPanelBody.innerHTML = `
+    <div class="src-panel-loading">
+      <div class="src-spinner"></div>
+      <span>Loading document…</span>
+    </div>`;
+
+  srcOverlay.classList.add('open');
+  srcPanel.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  try {
+    const res  = await fetch(`${API_BASE}/api/documents/${encodeURIComponent(filename)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail ?? 'Failed to load document');
+
+    // Render metadata strip
+    srcPanelMeta.innerHTML = `
+      <span>📄 ${data.filename}</span>
+      <span>·</span>
+      <span>${formatBytes(data.size_bytes)}</span>
+      ${data.chunks > 0 ? `<span>·</span><span style="color:var(--accent);">${data.chunks} chunks</span>` : ''}`;
+
+    // Build the rendered content, injecting an anchor at the matched excerpt
+    const excerpt = src.excerpt?.trim() ?? '';
+    srcPanelBody.innerHTML = renderMarkdownWithHighlight(data.content, excerpt);
+
+    // Show excerpt navigation banner and scroll to it
+    if (excerpt) {
+      srcExcerptBanner.style.display = 'flex';
+      const marker = srcPanelBody.querySelector('.src-match-highlight');
+      if (marker) {
+        // Small delay so the panel transition finishes before scrolling
+        setTimeout(() => marker.scrollIntoView({ behavior: 'smooth', block: 'center' }), 320);
+      }
+    }
+
+  } catch (err) {
+    srcPanelBody.innerHTML = `<div class="error-bubble">⚠ ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+function closeSourcePanel() {
+  srcOverlay.classList.remove('open');
+  srcPanel.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// Close events
+srcPanelClose.addEventListener('click', closeSourcePanel);
+srcOverlay.addEventListener('click', closeSourcePanel);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && srcPanel.classList.contains('open')) closeSourcePanel();
+});
+
+/**
+ * Render markdown content, embedding a highlighted block around the first
+ * occurrence of `excerpt` text so users can jump directly to the matched chunk.
+ */
+function renderMarkdownWithHighlight(text, excerpt) {
+  if (!excerpt || excerpt.length < 15) {
+    return renderMarkdown(text);
+  }
+
+  // Find a ~30-char prefix from the excerpt to locate it in the raw document
+  const needle = excerpt.slice(0, 60).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(needle, 'i');
+  const match = re.exec(text);
+
+  if (!match) {
+    return renderMarkdown(text);
+  }
+
+  // Split document at the match position
+  const excerptLen = excerpt.length;
+  const before = text.slice(0, match.index);
+  const highlighted = text.slice(match.index, match.index + excerptLen);
+  const after  = text.slice(match.index + excerptLen);
+
+  return (
+    renderMarkdown(before) +
+    `<span class="src-match-highlight" id="srcMatchAnchor">${escapeHtml(highlighted)}</span>` +
+    renderMarkdown(after)
+  );
 }
 
 function escapeHtml(str) {
@@ -234,7 +351,7 @@ async function sendQuery() {
     const response = await fetch(`${API_BASE}/api/query/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, top_n: 20, top_k: 4, alpha: 0.7 }),
+      body: JSON.stringify({ query, top_n: 10, top_k: 3, alpha: 0.7 }),
     });
 
     if (!response.ok) {

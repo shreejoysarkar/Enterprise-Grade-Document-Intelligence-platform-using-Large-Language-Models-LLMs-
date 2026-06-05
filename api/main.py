@@ -60,8 +60,8 @@ if FRONTEND_DIR.exists():
 
 class QueryRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=2000, description="User question")
-    top_n: int = Field(default=20, ge=1, le=50, description="Candidates to retrieve")
-    top_k: int = Field(default=4, ge=1, le=10, description="Re-ranked results to use")
+    top_n: int = Field(default=10, ge=1, le=50, description="Candidates to retrieve")
+    top_k: int = Field(default=3, ge=1, le=10, description="Re-ranked results to use")
     alpha: float = Field(default=0.7, ge=0.0, le=1.0, description="Dense/sparse balance")
 
 
@@ -122,7 +122,7 @@ async def query_rag(request: QueryRequest):
         pipeline = get_pipeline()
 
         # Run retrieval + rerank in a thread to avoid blocking the event loop
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         contexts = await loop.run_in_executor(
             None,
             lambda: pipeline.retrieve_and_rerank(
@@ -143,10 +143,14 @@ async def query_rag(request: QueryRequest):
         prompt = pipeline.build_prompt(request.query, contexts)
 
         import ollama
+        # Speed-tuned generation options (mirrors retrieval_and_generation_4.py)
         options = {
             "temperature": settings.llm_temperature if settings.llm_temperature > 0 else 0.1,
-            "num_predict": 512,
-            "repeat_penalty": 1.15,
+            "num_predict": 300,
+            "num_ctx": 2048,
+            "top_k": 20,
+            "top_p": 0.9,
+            "repeat_penalty": 1.1,
         }
         messages = [
             {"role": "system", "content": "You are a helpful, precise, and concise document assistant."},
@@ -185,7 +189,7 @@ async def query_rag_stream(request: QueryRequest):
     async def generate() -> AsyncGenerator[str, None]:
         try:
             pipeline = get_pipeline()
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
 
             # Retrieval (blocking → thread)
             contexts = await loop.run_in_executor(
@@ -218,10 +222,14 @@ async def query_rag_stream(request: QueryRequest):
             prompt = pipeline.build_prompt(request.query, contexts)
 
             import ollama
+            # Speed-tuned generation options (mirrors retrieval_and_generation_4.py)
             options = {
                 "temperature": settings.llm_temperature if settings.llm_temperature > 0 else 0.1,
-                "num_predict": 512,
-                "repeat_penalty": 1.15,
+                "num_predict": 300,
+                "num_ctx": 2048,
+                "top_k": 20,
+                "top_p": 0.9,
+                "repeat_penalty": 1.1,
             }
             messages = [
                 {"role": "system", "content": "You are a helpful, precise, and concise document assistant."},
