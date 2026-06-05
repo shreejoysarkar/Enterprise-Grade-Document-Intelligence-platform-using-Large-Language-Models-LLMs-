@@ -262,6 +262,19 @@ body { display: flex; height: 100vh; overflow: hidden; }
 
 .message.user { flex-direction: row-reverse; }
 
+/* Assistant messages use a column layout so sources go below the bubble+handle row */
+.message.assistant {
+  flex-direction: column;
+}
+
+/* Row containing avatar + resizable bubble + drag handle */
+.message.assistant .bubble-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  width: 100%;
+}
+
 .avatar {
   width: 30px;
   height: 30px;
@@ -286,18 +299,32 @@ body { display: flex; height: 100vh; overflow: hidden; }
   color: var(--accent);
 }
 
-.bubble {
+/* Bubble wrapper — holds the bubble + the resize handle */
+.bubble-wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-width: 160px;
   max-width: calc(100% - 42px);
+  flex: 1;
+}
+
+.bubble {
   padding: 0.75rem 1rem;
   border-radius: var(--radius);
   line-height: 1.65;
   font-size: 0.875rem;
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+  transition: font-size 0.15s ease;
 }
 
 .message.user .bubble {
   background: var(--accent);
   color: #fff;
   border-bottom-right-radius: 3px;
+  max-width: calc(100% - 42px);
 }
 
 .message.assistant .bubble {
@@ -306,7 +333,130 @@ body { display: flex; height: 100vh; overflow: hidden; }
   color: var(--text);
   border-bottom-left-radius: 3px;
   white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
+
+/* ── Bubble drag-resize handle ─────────────────────────────────────────────── */
+.bubble-resize-handle {
+  width: 8px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  border-radius: 0 4px 4px 0;
+  margin-left: 2px;
+}
+.bubble-wrap:hover .bubble-resize-handle,
+.bubble-wrap.resizing .bubble-resize-handle {
+  opacity: 1;
+}
+.bubble-resize-handle::after {
+  content: '';
+  width: 3px;
+  height: 32px;
+  border-radius: 99px;
+  background: var(--border-light);
+  transition: background 0.15s ease;
+}
+.bubble-resize-handle:hover::after,
+.bubble-wrap.resizing .bubble-resize-handle::after {
+  background: var(--accent);
+}
+
+/* ── Font-size toolbar ─────────────────────────────────────────────────────── */
+.bubble-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.375rem;
+  margin-left: calc(30px + 0.875rem); /* align with bubble left edge (avatar width + gap) */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.message.assistant:hover .bubble-toolbar,
+.bubble-toolbar.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.bubble-toolbar-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+  flex-shrink: 0;
+  line-height: 1;
+  font-family: var(--font);
+}
+.bubble-toolbar-btn:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.bubble-font-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  width: 90px;
+  border-radius: 99px;
+  background: var(--border-light);
+  outline: none;
+  cursor: pointer;
+}
+.bubble-font-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 0 0 2px var(--bg-2);
+  transition: transform 0.15s ease;
+}
+.bubble-font-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
+.bubble-font-slider::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+}
+
+.bubble-font-label {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  min-width: 28px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font);
+}
+
+.bubble-toolbar-reset {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 0 0.25rem;
+  border-radius: 3px;
+  transition: color var(--transition);
+}
+.bubble-toolbar-reset:hover { color: var(--accent); }
+
 
 /* Sources */
 .sources {

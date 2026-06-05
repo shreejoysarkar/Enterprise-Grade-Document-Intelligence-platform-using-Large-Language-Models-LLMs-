@@ -139,11 +139,130 @@ function createMessage(role) {
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
 
-  wrap.appendChild(avatar);
-  wrap.appendChild(bubble);
+  if (role === 'assistant') {
+    // ── Bubble row: [avatar] [bubble-wrap: [bubble] [resize-handle]]
+    const bubbleRow = document.createElement('div');
+    bubbleRow.className = 'bubble-row';
+
+    const bubbleWrap = document.createElement('div');
+    bubbleWrap.className = 'bubble-wrap';
+
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'bubble-resize-handle';
+    resizeHandle.title = 'Drag to resize';
+
+    bubbleWrap.appendChild(bubble);
+    bubbleWrap.appendChild(resizeHandle);
+    bubbleRow.appendChild(avatar);
+    bubbleRow.appendChild(bubbleWrap);
+    wrap.appendChild(bubbleRow);
+
+    // Wire up drag resize immediately
+    attachBubbleResize(bubbleWrap, bubble, resizeHandle);
+  } else {
+    wrap.appendChild(avatar);
+    wrap.appendChild(bubble);
+  }
+
   messagesEl.appendChild(wrap);
   scrollToBottom();
   return bubble;
+}
+
+// ── Drag-to-resize ────────────────────────────────────────────────────────────
+function attachBubbleResize(bubbleWrap, bubble, handle) {
+  let startX = 0;
+  let startW = 0;
+
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    startX = e.clientX;
+    startW = bubble.getBoundingClientRect().width;
+    bubbleWrap.classList.add('resizing');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const onMove = ev => {
+      const delta = ev.clientX - startX;
+      const newW  = Math.max(160, Math.min(startW + delta, bubbleWrap.parentElement.clientWidth - 50));
+      bubbleWrap.style.flex = 'none';
+      bubbleWrap.style.width = newW + 'px';
+    };
+
+    const onUp = () => {
+      bubbleWrap.classList.remove('resizing');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
+// ── Font-size toolbar ─────────────────────────────────────────────────────────
+const DEFAULT_FONT_PX = 14;   // matches 0.875rem at root 16px
+
+function attachFontToolbar(bubble, wrap) {
+  let currentPx = DEFAULT_FONT_PX;
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'bubble-toolbar visible';
+
+  // A- button
+  const btnSmall = document.createElement('button');
+  btnSmall.className = 'bubble-toolbar-btn';
+  btnSmall.textContent = 'A−';
+  btnSmall.title = 'Decrease font size';
+
+  // Slider
+  const slider = document.createElement('input');
+  slider.type = 'range';
+  slider.className = 'bubble-font-slider';
+  slider.min = 10;
+  slider.max = 22;
+  slider.step = 1;
+  slider.value = currentPx;
+
+  // Size label
+  const label = document.createElement('span');
+  label.className = 'bubble-font-label';
+  label.textContent = currentPx + 'px';
+
+  // A+ button
+  const btnLarge = document.createElement('button');
+  btnLarge.className = 'bubble-toolbar-btn';
+  btnLarge.textContent = 'A+';
+  btnLarge.title = 'Increase font size';
+
+  // Reset
+  const resetBtn = document.createElement('span');
+  resetBtn.className = 'bubble-toolbar-reset';
+  resetBtn.textContent = 'Reset';
+  resetBtn.title = 'Reset to default size';
+
+  function applySize(px) {
+    currentPx = Math.max(10, Math.min(22, px));
+    bubble.style.fontSize = currentPx + 'px';
+    slider.value = currentPx;
+    label.textContent = currentPx + 'px';
+  }
+
+  btnSmall.addEventListener('click', () => applySize(currentPx - 1));
+  btnLarge.addEventListener('click', () => applySize(currentPx + 1));
+  resetBtn.addEventListener('click',  () => applySize(DEFAULT_FONT_PX));
+  slider.addEventListener('input', () => applySize(parseInt(slider.value, 10)));
+
+  toolbar.appendChild(btnSmall);
+  toolbar.appendChild(slider);
+  toolbar.appendChild(label);
+  toolbar.appendChild(btnLarge);
+  toolbar.appendChild(resetBtn);
+
+  // Insert toolbar after the bubble-row inside the message wrap
+  wrap.appendChild(toolbar);
 }
 
 function createTypingIndicator() {
@@ -151,16 +270,24 @@ function createTypingIndicator() {
   wrap.className = 'message assistant';
   wrap.id = 'typingIndicator';
 
+  const bubbleRow = document.createElement('div');
+  bubbleRow.className = 'bubble-row';
+
   const avatar = document.createElement('div');
   avatar.className = 'avatar';
   avatar.textContent = 'AI';
+
+  const bubbleWrap = document.createElement('div');
+  bubbleWrap.className = 'bubble-wrap';
 
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
   bubble.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
 
-  wrap.appendChild(avatar);
-  wrap.appendChild(bubble);
+  bubbleWrap.appendChild(bubble);
+  bubbleRow.appendChild(avatar);
+  bubbleRow.appendChild(bubbleWrap);
+  wrap.appendChild(bubbleRow);
   messagesEl.appendChild(wrap);
   scrollToBottom();
   return wrap;
@@ -402,7 +529,11 @@ async function sendQuery() {
             assistantBubble = createMessage('assistant');
             assistantBubble.textContent = fullText;
           }
-          renderSources(sources, assistantBubble.parentElement);
+          // assistantBubble → .bubble-wrap → .bubble-row → .message (wrap)
+          const msgWrap = assistantBubble.closest('.message');
+          renderSources(sources, msgWrap);
+          // Attach font-size toolbar now that generation is complete
+          attachFontToolbar(assistantBubble, msgWrap);
           scrollToBottom();
 
         } else if (event.type === 'error') {
